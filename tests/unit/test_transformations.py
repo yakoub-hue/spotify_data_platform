@@ -1,0 +1,78 @@
+import pytest, uuid
+from datetime import datetime
+from src.transformations.catalog import normalize_artist_name, validate_track_schema, deduplicate_artists
+from src.transformations.events import is_valid_listening_event
+
+@pytest.fixture
+def valid_track():
+    return {"id":str(uuid.uuid4()),"artist_id":str(uuid.uuid4()),"title":"Test Track","duration_ms":210000,"genre":"Pop"}
+
+@pytest.fixture
+def valid_listening_event():
+    return {"event_id":str(uuid.uuid4()),"user_id":str(uuid.uuid4()),"track_id":str(uuid.uuid4()),"source_peer":str(uuid.uuid4()),"timestamp":datetime.utcnow().isoformat()+"Z","duration_ms":45000,"completed":True,"device_type":"mobile","geo_country":"FR","event_source":"p2p"}
+
+@pytest.fixture
+def catalog_with_duplicates():
+    aid=str(uuid.uuid4())
+    return {"artists":[{"id":aid,"name":"The Beatles","label":"EMI"},{"id":str(uuid.uuid4()),"name":"the beatles","label":"EMI"},{"id":str(uuid.uuid4()),"name":"Led Zeppelin","label":"Atlantic"}]}
+
+class TestNormalizeArtistName:
+    def test_strips_whitespace(self): assert normalize_artist_name("  The Beatles  ")=="The Beatles"
+    def test_title_case(self): assert normalize_artist_name("the beatles")=="The Beatles"
+    def test_handles_none(self): assert normalize_artist_name(None) is None
+    def test_preserves_special_chars(self): assert normalize_artist_name("björk")=="Björk"
+
+class TestValidateTrackSchema:
+    def test_valid_track_passes(self, valid_track): assert validate_track_schema(valid_track)==[]
+    def test_missing_title_fails(self, valid_track):
+        t={k:v for k,v in valid_track.items() if k!="title"}
+        assert "title" in str(validate_track_schema(t))
+    def test_negative_duration_fails(self, valid_track):
+        valid_track["duration_ms"]=-1
+        assert validate_track_schema(valid_track)
+    def test_too_long_duration_fails(self, valid_track):
+        valid_track["duration_ms"]=36000001
+        assert validate_track_schema(valid_track)
+
+class TestListeningEventValidation:
+    def test_valid_event_passes(self, valid_listening_event): assert is_valid_listening_event(valid_listening_event) is True
+    def test_missing_user_id_fails(self, valid_listening_event):
+        del valid_listening_event["user_id"]
+        assert is_valid_listening_event(valid_listening_event) is False
+    def test_future_timestamp_fails(self, valid_listening_event):
+        valid_listening_event["timestamp"]="2099-01-01T00:00:00Z"
+        assert is_valid_listening_event(valid_listening_event) is False
+    def test_bot_pattern_detected(self):
+        e={"event_id":"1","user_id":"2","track_id":"3","source_peer":"4","timestamp":datetime.utcnow().isoformat()+"Z","duration_ms":100,"completed":False,"device_type":"mobile","geo_country":"FR","event_source":"p2p"}
+        assert is_valid_listening_event(e) is False
+
+class TestDeduplication:
+    def test_removes_duplicate_artists_same_label(self, catalog_with_duplicates):
+        result=deduplicate_artists(catalog_with_duplicates["artists"])
+        names=[a["name"] for a in result]
+        assert names.count("The Beatles")==1
+    def test_keeps_different_labels(self, catalog_with_duplicates):
+        artists=[{"id":"1","name":"Artist X","label":"Label A"},{"id":"2","name":"Artist X","label":"Label B"}]
+        assert len(deduplicate_artists(artists))==2
+
+class TestDataGenerator:
+    def test_generate_catalog_structure(self):
+        from src.data_generator.generate_catalog import generate_label_catalog
+        c=generate_label_catalog("Test Label",n_artists=2)
+        assert all(k in c for k in ["label","artists","albums","tracks"])
+        assert len(c["artists"])==2 and len(c["tracks"])>0
+    def test_generated_track_has_required_fields(self):
+        from src.data_generator.generate_catalog import generate_label_catalog
+        c=generate_label_catalog("Test Label",n_artists=1)
+        for t in c["tracks"]:
+            assert all(k in t for k in ["id","artist_id","title","duration_ms"])
+            assert t["duration_ms"]>0
+    def test_generated_artist_has_label(self):
+        from src.data_generator.generate_catalog import generate_label_catalog
+        c=generate_label_catalog("My Label",n_artists=3)
+        assert all(a["label"]=="My Label" for a in c["artists"])
+    def test_track_ids_are_unique(self):
+        from src.data_generator.generate_catalog import generate_label_catalog
+        c=generate_label_catalog("Test Label",n_artists=5)
+        ids=[t["id"] for t in c["tracks"]]
+        assert len(ids)==len(set(ids))
