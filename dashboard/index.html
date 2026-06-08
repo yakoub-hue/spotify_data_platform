@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOTIFY — Data Platform Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #1DB954;
+    --green-dim: #158a3e;
+    --green-glow: rgba(29,185,84,0.15);
+    --black: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --surface3: #222222;
+    --border: rgba(255,255,255,0.06);
+    --text: #ffffff;
+    --text-muted: rgba(255,255,255,0.45);
+    --red: #e53935;
+    --amber: #ffb300;
+    --blue: #1e88e5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(29,185,84,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(29,185,84,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(29,185,84,0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(29,185,84,0); }
+  }
+
+  .logo-icon svg { width: 22px; height: 22px; fill: #000; }
+
+  .logo-text { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--green); }
+
+  .logo-sub { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+  .header-right { display: flex; align-items: center; gap: 20px; }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(29,185,84,0.1);
+    border: 1px solid rgba(29,185,84,0.3);
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--green);
+  }
+
+  .live-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: blink 1.2s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--green);
+    opacity: 0.6;
+  }
+
+  .stat-card.red::before { background: var(--red); }
+  .stat-card.amber::before { background: var(--amber); }
+  .stat-card.blue::before { background: var(--blue); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.amber { color: var(--amber); }
+
+  .stat-delta {
+    font-size: 11px;
+    color: var(--green);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 6px;
+  }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  /* PANELS */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .panel-badge {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+
+  /* TOP TRACKS */
+  .track-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .track-item {
+    display: grid;
+    grid-template-columns: 28px 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    cursor: default;
+  }
+
+  .track-item:hover { background: var(--surface2); }
+
+  .track-rank {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .track-rank.top3 { color: var(--green); font-weight: 600; }
+
+  .track-info .track-title {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+  }
+
+  .track-info .track-artist {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  .track-genre {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: var(--surface3);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+  }
+
+  .track-streams {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--green);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* BAR CHART */
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+
+  .bar-item { display: flex; align-items: center; gap: 10px; }
+
+  .bar-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    width: 70px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--surface3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+
+  .bar-value {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    width: 50px;
+    flex-shrink: 0;
+  }
+
+  /* PIPELINE STATUS */
+  .pipeline-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .pipeline-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .pipeline-name {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+  }
+
+  .pipeline-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+  }
+
+  .status-dot.success { background: var(--green); }
+  .status-dot.running { background: var(--amber); animation: blink 1s infinite; }
+  .status-dot.error { background: var(--red); }
+
+  .status-text.success { color: var(--green); }
+  .status-text.running { color: var(--amber); }
+  .status-text.error { color: var(--red); }
+
+  /* LIVE EVENTS FEED */
+  .events-feed { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: hidden; }
+
+  .event-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: 7px;
+    border-left: 2px solid var(--green);
+    animation: slideIn 0.3s ease;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .event-user { color: var(--green); font-weight: 500; }
+  .event-track { color: var(--text); }
+  .event-meta { color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+  /* BOTTOM GRID */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* WAVEFORM ANIMATION */
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 40px;
+  }
+
+  .wave-bar {
+    width: 4px;
+    background: var(--green);
+    border-radius: 2px;
+    animation: wave var(--dur, 1s) ease-in-out infinite alternate;
+    opacity: 0.7;
+  }
+
+  @keyframes wave {
+    from { height: 4px; }
+    to { height: var(--h, 30px); }
+  }
+
+  /* P2P Network viz */
+  .p2p-viz {
+    position: relative;
+    height: 120px;
+    margin: 10px 0;
+  }
+
+  .p2p-node {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: nodeFloat var(--dur, 3s) ease-in-out infinite alternate;
+  }
+
+  @keyframes nodeFloat {
+    from { transform: translate(0, 0); opacity: 0.4; }
+    to { transform: translate(var(--dx, 5px), var(--dy, 5px)); opacity: 1; }
+  }
+
+  /* Scrolling ticker */
+  .ticker-wrap {
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    margin-top: 20px;
+    background: var(--surface);
+  }
+
+  .ticker {
+    display: flex;
+    gap: 60px;
+    animation: ticker 30s linear infinite;
+    white-space: nowrap;
+  }
+
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  .ticker-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ticker-item .dot { color: var(--green); }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .main-grid { grid-template-columns: 1fr; }
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+      </div>
+      <div>
+        <div class="logo-text">SPOTIFY <span>Data Platform</span></div>
+        <div class="logo-sub">Master 1 Data & IA — Projet 35h</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        LIVE DATA
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Streams / jour</div>
+      <div class="stat-value green" id="total-streams">—</div>
+      <div class="stat-delta" id="streams-delta">↑ chargement...</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Listeners actifs</div>
+      <div class="stat-value" id="active-listeners">—</div>
+      <div class="stat-delta">en ce moment</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Peers P2P</div>
+      <div class="stat-value" id="active-peers">—</div>
+      <div class="stat-delta">réseau distribué</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Cache hit rate</div>
+      <div class="stat-value amber" id="cache-hit">—</div>
+      <div class="stat-delta" style="color:var(--amber)">P2P efficiency</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">Latence P2P</div>
+      <div class="stat-value" id="avg-latency" style="color:var(--blue)">—</div>
+      <div class="stat-delta" style="color:var(--blue)">avg ms</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Fraudes détectées</div>
+      <div class="stat-value red" id="fraud-alerts">—</div>
+      <div class="stat-delta" style="color:var(--red)">alertes actives</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- TOP TRACKS -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Top 10 — Temps réel</div>
+        <div class="panel-badge" id="update-badge">mise à jour...</div>
+      </div>
+      <div class="track-list" id="track-list">
+        <!-- dynamique -->
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- PIPELINE STATUS -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Pipelines Airflow</div>
+        </div>
+        <div class="pipeline-list" id="pipeline-list">
+          <!-- dynamique -->
+        </div>
+      </div>
+
+      <!-- WAVEFORM -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Events P2P / min</div>
+          <div class="panel-badge" id="p2p-rate">—</div>
+        </div>
+        <div class="waveform" id="waveform">
+          <!-- dynamique -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BOTTOM GRID -->
+  <div class="bottom-grid">
+
+    <!-- GENRE DISTRIBUTION -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Distribution par genre</div>
+      </div>
+      <div class="bar-chart" id="genre-chart">
+        <!-- dynamique -->
+      </div>
+    </div>
+
+    <!-- LIVE EVENTS FEED -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Flux d'écoutes live</div>
+        <div class="live-badge" style="font-size:10px;padding:3px 8px;">
+          <div class="live-dot"></div> LIVE
+        </div>
+      </div>
+      <div class="events-feed" id="events-feed">
+        <!-- dynamique -->
+      </div>
+    </div>
+
+    <!-- P2P NETWORK -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Réseau P2P</div>
+        <div class="panel-badge" id="network-peers">— peers</div>
+      </div>
+      <div class="p2p-viz" id="p2p-viz">
+        <!-- dynamique -->
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;margin-top:8px;" id="p2p-stats">
+        Chaque point = un peer actif
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- TICKER -->
+<div class="ticker-wrap" style="margin-top:20px;">
+  <div class="ticker" id="ticker">
+    <!-- dynamique -->
+  </div>
+</div>
+
+<script>
+// ── CONFIGURATION ────────────────────────────────────────────
+const API_URL = 'http://localhost:3000';
+let useMockData = true; // Mode démo — données simulées
+
+// ── HORLOGE ──────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent = 
+    new Date().toLocaleTimeString('fr-FR');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── DONNÉES MOCK ─────────────────────────────────────────────
+const GENRES = ["Pop","Hip-Hop","Electronic","Rock","R&B","Jazz","Latin","Metal","Folk","Classical"];
+const ARTISTS = ["The Weeknd","Daft Punk","Billie Eilish","Drake","Beyoncé",
+                 "Kendrick Lamar","Taylor Swift","Bad Bunny","Rosalía","Frank Ocean",
+                 "Stromae","PNL","Angèle","Jul","Aya Nakamura"];
+const COUNTRIES = ["FR","US","DE","GB","BR","JP","ES","IT","KR","AU"];
+const DEVICES = ["mobile","desktop","smart_speaker","web","tv"];
+
+let streamCount = 0;
+let trackData = [];
+
+function generateMockDashboard() {
+  streamCount += Math.floor(Math.random() * 5000 + 1000);
+  trackData = Array.from({length: 10}, (_, i) => ({
+    rank: i + 1,
+    title: `Track ${String(Math.floor(Math.random()*999)+1).padStart(3,'0')}`,
+    artist: ARTISTS[Math.floor(Math.random()*ARTISTS.length)],
+    genre: GENRES[Math.floor(Math.random()*GENRES.length)],
+    streams: Math.floor(Math.random() * 2000000 + 100000),
+    duration_ms: Math.floor(Math.random() * 180000 + 120000),
+  })).sort((a,b) => b.streams - a.streams).map((t,i) => ({...t, rank: i+1}));
+
+  return {
+    top_tracks: trackData,
+    stats: {
+      total_streams: streamCount + Math.floor(Math.random()*50000),
+      active_peers: Math.floor(Math.random()*8000 + 15000),
+      active_listeners: Math.floor(Math.random()*500000 + 1200000),
+      fraud_alerts: Math.floor(Math.random()*12),
+      cache_hit_rate: (Math.random()*0.2 + 0.72).toFixed(2),
+      avg_latency_ms: Math.floor(Math.random()*30 + 10),
+    },
+    genre_distribution: GENRES.map(g => ({
+      genre: g,
+      streams: Math.floor(Math.random()*4000000 + 200000)
+    })).sort((a,b) => b.streams - a.streams),
+    p2p_events_per_min: Math.floor(Math.random()*1500 + 1200),
+    pipeline_status: {
+      'catalog_ingestion': 'success',
+      'streaming_events': 'running',
+      'aggregation': 'success',
+      'recommendation': 'success',
+      'dlq_reprocessing': Math.random() > 0.8 ? 'running' : 'success',
+    }
+  };
+}
+
+function generateLiveEvents() {
+  return Array.from({length: 5}, () => ({
+    user: `user_${Math.floor(Math.random()*9000+1000)}`,
+    track: `Track ${String(Math.floor(Math.random()*999)+1).padStart(3,'0')}`,
+    country: COUNTRIES[Math.floor(Math.random()*COUNTRIES.length)],
+    device: DEVICES[Math.floor(Math.random()*DEVICES.length)],
+    peer: `peer_${Math.floor(Math.random()*900+100)}`,
+  }));
+}
+
+// ── FORMATAGE ─────────────────────────────────────────────────
+function fmt(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(0) + 'K';
+  return n.toString();
+}
+
+function fmtDuration(ms) {
+  const m = Math.floor(ms/60000);
+  const s = Math.floor((ms%60000)/1000);
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+// ── RENDU ─────────────────────────────────────────────────────
+function renderDashboard(data) {
+  const s = data.stats;
+
+  // Stats
+  document.getElementById('total-streams').textContent = fmt(s.total_streams);
+  document.getElementById('active-listeners').textContent = fmt(s.active_listeners);
+  document.getElementById('active-peers').textContent = fmt(s.active_peers);
+  document.getElementById('cache-hit').textContent = Math.round(s.cache_hit_rate * 100) + '%';
+  document.getElementById('avg-latency').textContent = s.avg_latency_ms + 'ms';
+  document.getElementById('fraud-alerts').textContent = s.fraud_alerts;
+  document.getElementById('streams-delta').textContent = `↑ +${fmt(Math.floor(Math.random()*2000+500))} / min`;
+  document.getElementById('p2p-rate').textContent = fmt(data.p2p_events_per_min) + ' evt/min';
+  document.getElementById('network-peers').textContent = fmt(s.active_peers) + ' peers';
+  document.getElementById('update-badge').textContent = new Date().toLocaleTimeString('fr-FR');
+
+  // Top Tracks
+  const trackList = document.getElementById('track-list');
+  trackList.innerHTML = data.top_tracks.map(t => `
+    <div class="track-item">
+      <div class="track-rank ${t.rank <= 3 ? 'top3' : ''}">${t.rank <= 3 ? '▲' : ''}${t.rank}</div>
+      <div class="track-info">
+        <div class="track-title">${t.title}</div>
+        <div class="track-artist">${t.artist}</div>
+      </div>
+      <div class="track-genre">${t.genre}</div>
+      <div class="track-streams">${fmt(t.streams)}</div>
+    </div>
+  `).join('');
+
+  // Pipeline Status
+  const pipelineList = document.getElementById('pipeline-list');
+  const pipelineLabels = {
+    'catalog_ingestion': 'catalog_ingestion',
+    'streaming_events': 'streaming_events',
+    'aggregation': 'aggregation',
+    'recommendation': 'recommendation',
+    'dlq_reprocessing': 'dlq_reprocessing',
+  };
+  pipelineList.innerHTML = Object.entries(data.pipeline_status).map(([k, v]) => `
+    <div class="pipeline-item">
+      <div class="pipeline-name">${pipelineLabels[k] || k}</div>
+      <div class="pipeline-status">
+        <div class="status-dot ${v}"></div>
+        <span class="status-text ${v}">${v}</span>
+      </div>
+    </div>
+  `).join('');
+
+  // Waveform
+  const waveform = document.getElementById('waveform');
+  waveform.innerHTML = Array.from({length: 28}, (_, i) => {
+    const h = Math.floor(Math.random()*32 + 4);
+    const dur = (0.4 + Math.random()*0.8).toFixed(2);
+    const delay = (Math.random()*0.5).toFixed(2);
+    return `<div class="wave-bar" style="--h:${h}px;--dur:${dur}s;animation-delay:${delay}s;height:${h}px;"></div>`;
+  }).join('');
+
+  // Genre Chart
+  const maxStreams = Math.max(...data.genre_distribution.map(g => g.streams));
+  const genreChart = document.getElementById('genre-chart');
+  genreChart.innerHTML = data.genre_distribution.slice(0,8).map(g => `
+    <div class="bar-item">
+      <div class="bar-label">${g.genre}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${Math.round(g.streams/maxStreams*100)}%"></div>
+      </div>
+      <div class="bar-value">${fmt(g.streams)}</div>
+    </div>
+  `).join('');
+
+  // P2P Viz
+  const p2pViz = document.getElementById('p2p-viz');
+  p2pViz.innerHTML = Array.from({length: 30}, (_, i) => {
+    const x = Math.random() * 90;
+    const y = Math.random() * 90;
+    const size = Math.random() > 0.8 ? 10 : 6;
+    const dur = (2 + Math.random()*3).toFixed(1);
+    const dx = (Math.random()*10 - 5).toFixed(0);
+    const dy = (Math.random()*10 - 5).toFixed(0);
+    return `<div class="p2p-node" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;--dur:${dur}s;--dx:${dx}px;--dy:${dy}px;animation-delay:${(Math.random()*2).toFixed(1)}s;"></div>`;
+  }).join('');
+
+  document.getElementById('p2p-stats').textContent =
+    `${fmt(s.active_peers)} peers actifs · ${fmt(data.p2p_events_per_min)} evt/min · cache ${Math.round(s.cache_hit_rate*100)}%`;
+}
+
+function renderLiveEvents() {
+  const feed = document.getElementById('events-feed');
+  const events = generateLiveEvents();
+  const deviceIcons = {mobile:'📱', desktop:'💻', smart_speaker:'🔊', web:'🌐', tv:'📺'};
+  
+  // Ajouter les nouveaux events en haut
+  events.forEach(e => {
+    const el = document.createElement('div');
+    el.className = 'event-item';
+    el.innerHTML = `
+      <span class="event-user">${e.user}</span>
+      <span style="color:var(--text-muted)">→</span>
+      <span class="event-track">${e.track}</span>
+      <span class="event-meta">${deviceIcons[e.device] || '🎵'} ${e.country} · ${e.peer}</span>
+    `;
+    feed.insertBefore(el, feed.firstChild);
+  });
+
+  // Garder max 8 events
+  while (feed.children.length > 8) {
+    feed.removeChild(feed.lastChild);
+  }
+}
+
+function renderTicker(data) {
+  const ticker = document.getElementById('ticker');
+  const items = data.top_tracks.slice(0, 5).map(t =>
+    `<div class="ticker-item"><span class="dot">●</span> #${t.rank} ${t.title} — ${t.artist} · ${fmt(t.streams)} streams</div>`
+  ).join('');
+  ticker.innerHTML = items + items; // doubler pour l'animation infinie
+}
+
+// ── BOUCLE PRINCIPALE ─────────────────────────────────────────
+async function update() {
+  let data;
+  try {
+    const res = await fetch(`${API_URL}/api/dashboard`);
+    data = await res.json();
+  } catch {
+    data = generateMockDashboard();
+  }
+  renderDashboard(data);
+  renderTicker(data);
+}
+
+async function updateEvents() {
+  renderLiveEvents();
+}
+
+// Lancer
+update();
+updateEvents();
+setInterval(update, 5000);
+setInterval(updateEvents, 1500);
+</script>
+</body>
+</html>
